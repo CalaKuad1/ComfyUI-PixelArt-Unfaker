@@ -6,7 +6,7 @@ Based on the algorithm from [unfake.js](https://github.com/jenissimo/unfake.js) 
 
 ![Before and after](docs/before_after.png)
 
-## 🌟 Features
+## Features
 
 * **Exact Target Resolution**: Get exactly `32x32`, `64x64`, `48x32`... Works with any input size, even when the "big pixels" of the AI image are not a whole number of real pixels, without stretching or half-pixels.
 * **Grid Alignment**: The sampling grid is snapped to the edges of the art, so every output pixel reads the center of an art pixel.
@@ -17,7 +17,7 @@ Based on the algorithm from [unfake.js](https://github.com/jenissimo/unfake.js) 
 * **Batch Support**: Process animation frames in one go. The pixel size detected on the first frame is reused for the rest.
 * **Ready-to-save outputs**: Real-size image (with alpha), a nearest-neighbor upscaled copy, the transparency mask and a JSON manifest with the detected grid and palette.
 
-## 🛠️ Installation
+## Installation
 
 **ComfyUI Manager**: search for *Pixel Art Unfaker* and install.
 
@@ -32,7 +32,7 @@ pip install -r requirements.txt
 
 Restart ComfyUI. The node is in `image/postprocessing` as **Unfake Pixel Art (AI to Real)**.
 
-## 🚀 Quick start (example workflow)
+## Quick start (example workflow)
 
 1. In ComfyUI open **Workflow → Browse Templates**, choose **ComfyUI-PixelArt-Unfaker → unfake_pixel_art_basic**.
    (Or drag [`example_workflows/unfake_pixel_art_basic.json`](example_workflows/unfake_pixel_art_basic.json) onto the canvas.)
@@ -54,7 +54,16 @@ It also works right after a KSampler / VAE Decode: plug the decoded image into t
 * **Missing 1-pixel details** (eyes, highlights): turn off `cleanup_jaggies`.
 * **No target size at all**: set both targets to `0` (auto-detect) or set `manual_scale_factor` to the size of one art pixel. Auto-detection works on integer upscales; for AI images, a target size is more reliable.
 
-## 🎛️ Node Parameters
+## How it works
+
+1. **Background removal**: the background color is estimated from the image border and the regions connected to the border are made transparent.
+2. **Grid size**: taken from the target size, from `manual_scale_factor`, or auto-detected from the spacing of the edges in the image.
+3. **Grid alignment**: the grid is shifted so its lines fall on the edges of the art.
+4. **Downscale**: one output pixel per grid cell (`nearest` or `dominant` color).
+5. **Quantization**: the opaque pixels are reduced to `max_colors` colors.
+6. **Cleanup**: isolated stray pixels are replaced with the color of their neighbors.
+
+## Node Parameters
 
 | Parameter | Description |
 |---|---|
@@ -78,11 +87,24 @@ It also works right after a KSampler / VAE Decode: plug the decoded image into t
 | `mask` | Transparent area in ComfyUI convention (1 = transparent, same as **Load Image**). |
 | `upscaled_image` | Nearest-neighbor upscaled copy, ready to save or preview. |
 
-## 🙏 Credits & Acknowledgements
+## Changelog
+
+**1.1.0**
+* Example workflow and example image (Browse Templates).
+* Exact target sizes without stretching, new `fit_mode` (crop / pad / stretch).
+* Batch support, new `mask` and `upscaled_image` outputs, JSON manifest.
+* Better grid alignment, background removal and `dominant` downscale on noisy AI images.
+* Quantization ignores transparent pixels; cleanup never adds new colors.
+* No more scikit-learn dependency; much faster processing.
+
+**1.0.0**
+* First release.
+
+## Credits & Acknowledgements
 
 * **[jenissimo](https://github.com/jenissimo)** for the original **[unfake.js](https://github.com/jenissimo/unfake.js)** library and algorithm.
 * **[tauraloke](https://github.com/tauraloke)** for **[ComfyUI-Unfake-Pixels](https://github.com/tauraloke/ComfyUI-Unfake-Pixels)**, the foundational inspiration for bringing this into ComfyUI.
 
-## 📄 License
+## License
 
 MIT License
