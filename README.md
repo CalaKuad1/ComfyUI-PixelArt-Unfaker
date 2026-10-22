@@ -37,7 +37,7 @@ Restart ComfyUI. The node is in `image/postprocessing` as **Unfake Pixel Art (AI
 1. In ComfyUI open **Workflow → Browse Templates**, choose **ComfyUI-PixelArt-Unfaker → unfake_pixel_art_basic**.
    (Or drag [`example_workflows/unfake_pixel_art_basic.json`](example_workflows/unfake_pixel_art_basic.json) onto the canvas.)
 2. Copy [`example_workflows/unfake_example_input.jpg`](example_workflows/unfake_example_input.jpg) into `ComfyUI/input/`, or load your own image in **Load Image**.
-3. Press **Queue**. You get the real 32x32 sprite and a 16x upscaled copy in `ComfyUI/output/pixelart/`.
+3. Press **Run** (called **Queue** in older ComfyUI versions). You get the real 32x32 sprite and a 16x upscaled copy in `ComfyUI/output/pixelart/`.
 
 ![Example workflow in ComfyUI](docs/workflow_screenshot.png)
 
