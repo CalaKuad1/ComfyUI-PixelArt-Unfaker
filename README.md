@@ -13,7 +13,8 @@ Based on the algorithm from [unfake.js](https://github.com/jenissimo/unfake.js) 
 * **Edge-Aware Scale Detection**: Leave the target size at `0` to auto-detect the pixel size of clean, upscaled pixel art.
 * **Smart Background Removal**: Detects the background color from the image border and removes only the regions connected to it, so similar colors inside the sprite are kept.
 * **Color Quantization**: Reduces the palette (median cut + k-means). Transparent pixels never waste palette slots.
-* **Stray Pixel Cleanup**: Removes isolated noise pixels without introducing new colors.
+* **Similar Color Merging**: Merges the near-identical shades that AI noise creates, so flat areas come out flat instead of speckled.
+* **Optional Stray Pixel Cleanup**: Removes isolated noise pixels without introducing new colors (off by default).
 * **Batch Support**: Process animation frames in one go. The pixel size detected on the first frame is reused for the rest.
 * **Ready-to-save outputs**: Real-size image (with alpha), a nearest-neighbor upscaled copy, the transparency mask and a JSON manifest with the detected grid and palette.
 
@@ -47,8 +48,9 @@ It also works right after a KSampler / VAE Decode: plug the decoded image into t
 
 * **Which target size?** Count the "big pixels" across the AI image (or guess: most AI pixel art is drawn as 32, 48, 64 or 128 pixels wide) and use that as `target_width`. Set `target_height` to `0` to keep the aspect ratio.
 * **Leftover background** around the sprite: raise `background_tolerance` (20–40 for noisy / JPEG images).
-* **Blotchy colors**: use `downscale_method = dominant`.
-* **Missing 1-pixel details** (eyes, highlights): turn off `cleanup_jaggies`.
+* **Speckled / blotchy areas**: raise `merge_similar_colors` (30–40). If subtle shading disappears, lower it.
+* **Still noisy**: try `downscale_method = dominant`.
+* **`cleanup_jaggies`** is off by default because it can remove intentional 1-pixel details (eyes, highlights). Turn it on only if there are lone stray pixels left.
 * **No target size at all**: set both targets to `0` (auto-detect) or set `manual_scale_factor` to the size of one art pixel. Auto-detection works on integer upscales; for AI images, a target size is more reliable.
 
 ## How it works
@@ -57,8 +59,8 @@ It also works right after a KSampler / VAE Decode: plug the decoded image into t
 2. **Grid size**: taken from the target size, from `manual_scale_factor`, or auto-detected from the spacing of the edges in the image.
 3. **Grid alignment**: the grid is shifted so its lines fall on the edges of the art.
 4. **Downscale**: one output pixel per grid cell (`nearest` or `dominant` color).
-5. **Quantization**: the opaque pixels are reduced to `max_colors` colors.
-6. **Cleanup**: isolated stray pixels are replaced with the color of their neighbors.
+5. **Quantization**: the opaque pixels are reduced to at most `max_colors` colors, then near-identical colors are merged.
+6. **Cleanup** (optional): isolated stray pixels are replaced with the color of their neighbors.
 
 ## Node Parameters
 
@@ -68,12 +70,13 @@ It also works right after a KSampler / VAE Decode: plug the decoded image into t
 | `manual_scale_factor` | Size of one art pixel in input pixels (e.g. `16` turns 1024 into 64). `0` = auto-detect. |
 | `remove_background` | Make the border-connected background transparent. |
 | `background_tolerance` | Max per-channel difference (0–255) from the background color. |
-| `max_colors` | Palette size. `0` = keep all colors. |
-| `cleanup_jaggies` | Replace isolated stray pixels with their neighbors' color. |
-| `downscale_method` | `nearest`: center pixel of each cell (crisp). `dominant`: most common color of each cell (robust to noise). |
+| `max_colors` | Maximum palette size. `0` = keep all colors. |
+| `cleanup_jaggies` | Replace isolated stray pixels with their neighbors' color. Off by default. |
+| `downscale_method` | `nearest`: center pixel of each cell (cleanest in most cases). `dominant`: most common color of each cell (for very noisy images). |
 | `scale_detection_method`, `ea_*` | Tuning for auto-detection (tile grid, minimum edge distance, edge strength). |
 | `upscale_preview_factor` | Upscale for the node preview and the `upscaled_image` output (capped at 4096px). |
 | `fit_mode` | When the aspect ratio differs from the target: `crop` (fill and cut), `pad` (fit with transparent borders) or `stretch`. |
+| `merge_similar_colors` | Merge palette colors closer than this RGB distance (default `24`). Removes noise shades; `0` = off. |
 
 ### Outputs
 
@@ -91,7 +94,8 @@ It also works right after a KSampler / VAE Decode: plug the decoded image into t
 * Exact target sizes without stretching, new `fit_mode` (crop / pad / stretch).
 * Batch support, new `mask` and `upscaled_image` outputs, JSON manifest.
 * Better grid alignment, background removal and `dominant` downscale on noisy AI images.
-* Quantization ignores transparent pixels; cleanup never adds new colors.
+* Quantization ignores transparent pixels; new `merge_similar_colors` removes noise shades.
+* `cleanup_jaggies` is now off by default and never adds new colors.
 * No more scikit-learn dependency; much faster processing.
 
 **1.0.0**

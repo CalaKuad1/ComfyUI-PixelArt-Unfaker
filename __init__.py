@@ -104,7 +104,7 @@ class UnfakePixelArtNode:
                 "cleanup_jaggies": (
                     "BOOLEAN",
                     {
-                        "default": True,
+                        "default": False,
                         "tooltip": "Replace isolated stray pixels with the color of their neighbors "
                         "(never adds new colors). May remove intentional 1-pixel details.",
                     },
@@ -173,6 +173,17 @@ class UnfakePixelArtNode:
                         "stretch: distort to fill.",
                     },
                 ),
+                "merge_similar_colors": (
+                    "INT",
+                    {
+                        "default": 24,
+                        "min": 0,
+                        "max": 100,
+                        "step": 1,
+                        "tooltip": "Merge palette colors closer than this RGB distance. Removes the near-identical "
+                        "shades that AI noise creates (speckled areas). Lower it if you lose subtle shading; 0 = off.",
+                    },
+                ),
             },
         }
 
@@ -204,6 +215,7 @@ class UnfakePixelArtNode:
         ea_peak_prominence_factor: float,
         upscale_preview_factor: int,
         fit_mode: str = "crop",
+        merge_similar_colors: int = 24,
     ):
         start_time = time.time()
         frames = (image.detach().cpu().clamp(0, 1).numpy() * 255).round().astype(np.uint8)
@@ -226,6 +238,7 @@ class UnfakePixelArtNode:
                 tile_grid_size=ea_tile_grid_size,
                 min_peak_distance=ea_min_peak_distance,
                 peak_prominence_factor=ea_peak_prominence_factor,
+                merge_distance=merge_similar_colors,
             )
             # Reuse the first frame's detected scale so a batch (e.g. animation frames) stays consistent
             if i == 0 and not has_target and scale <= 0:

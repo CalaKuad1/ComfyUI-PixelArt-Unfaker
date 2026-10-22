@@ -334,10 +334,30 @@ def _nearest_center(colors, centers, chunk=16384):
     return out
 
 
-def quantize(arr: np.ndarray, max_colors: int) -> tuple[np.ndarray, np.ndarray]:
+def _merge_close_colors(centers, weights, max_distance):
+    """Repeatedly merges the two closest colors (weighted mean) while closer than max_distance."""
+    centers, weights = centers.astype(np.float64).copy(), weights.astype(np.float64).copy()
+    while len(centers) > 1:
+        d = np.sqrt(np.maximum(_sq_distances(centers, centers), 0))
+        np.fill_diagonal(d, np.inf)
+        i, j = np.unravel_index(d.argmin(), d.shape)
+        if d[i, j] > max_distance:
+            break
+        total = weights[i] + weights[j]
+        centers[i] = (centers[i] * weights[i] + centers[j] * weights[j]) / total
+        weights[i] = total
+        centers, weights = np.delete(centers, j, axis=0), np.delete(weights, j)
+    return centers
+
+
+def quantize(
+    arr: np.ndarray, max_colors: int, merge_distance: float = 0
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Reduces opaque pixels to at most `max_colors` colors (median cut + k-means)
     and binarizes alpha. Transparent pixels never consume palette entries.
+    Palette colors closer than `merge_distance` (RGB) are then merged, which
+    removes near-duplicate shades produced by noise.
     Returns (image, palette as (K, 3) uint8).
     """
     out = arr.copy()
@@ -351,20 +371,28 @@ def quantize(arr: np.ndarray, max_colors: int) -> tuple[np.ndarray, np.ndarray]:
 
     uniq, inverse, counts = np.unique(pixels, axis=0, return_inverse=True, return_counts=True)
     inverse = inverse.reshape(-1)
-    if max_colors <= 0 or len(uniq) <= max_colors:
+
+    if max_colors > 0 and len(uniq) > max_colors:
+        # Initial palette: Pillow median cut over the opaque pixels only
+        strip = Image.fromarray(np.ascontiguousarray(pixels.reshape(1, -1, 3)))
+        q = strip.quantize(colors=max_colors, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+        n_used = int(np.asarray(q).max()) + 1
+        centers = np.array(q.getpalette()[: 3 * n_used], dtype=np.float64).reshape(-1, 3)
+
+        # Refine with k-means on (a sample of) the unique colors
+        fit_idx = np.arange(len(uniq))
+        if len(fit_idx) > 20000:
+            fit_idx = np.random.default_rng(0).choice(len(uniq), 20000, replace=False)
+        centers = _kmeans_refine(uniq[fit_idx], counts[fit_idx].astype(np.float64), centers)
+    elif merge_distance > 0 and len(uniq) <= 1024:
+        centers = uniq.astype(np.float64)
+    else:
         return out, uniq.astype(np.uint8)
 
-    # Initial palette: Pillow median cut over the opaque pixels only
-    strip = Image.fromarray(np.ascontiguousarray(pixels.reshape(1, -1, 3)))
-    q = strip.quantize(colors=max_colors, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
-    n_used = int(np.asarray(q).max()) + 1
-    centers = np.array(q.getpalette()[: 3 * n_used], dtype=np.float64).reshape(-1, 3)
-
-    # Refine with k-means on (a sample of) the unique colors
-    fit_idx = np.arange(len(uniq))
-    if len(fit_idx) > 20000:
-        fit_idx = np.random.default_rng(0).choice(len(uniq), 20000, replace=False)
-    centers = _kmeans_refine(uniq[fit_idx], counts[fit_idx].astype(np.float64), centers)
+    if merge_distance > 0:
+        weights = np.bincount(_nearest_center(uniq, centers), weights=counts, minlength=len(centers))
+        keep = weights > 0
+        centers = _merge_close_colors(centers[keep], weights[keep], merge_distance)
 
     palette = np.clip(np.round(centers), 0, 255).astype(np.uint8)
     mapped = palette[_nearest_center(uniq, palette)]
@@ -426,11 +454,12 @@ def unfake(
     remove_bg: bool = True,
     background_tolerance: int = 10,
     max_colors: int = 16,
-    cleanup: bool = True,
+    cleanup: bool = False,
     downscale_method: str = "nearest",
     tile_grid_size: int = 3,
     min_peak_distance: int = 5,
     peak_prominence_factor: float = 0.1,
+    merge_distance: float = 24,
 ) -> tuple[np.ndarray, dict]:
     """
     Runs the whole pipeline on one image. `arr` is (H, W, C) uint8.
@@ -483,7 +512,7 @@ def unfake(
         canvas[oy : oy + out_h, ox : ox + out_w] = result
         result = canvas
 
-    result, palette = quantize(result, max_colors)
+    result, palette = quantize(result, max_colors, merge_distance)
 
     if cleanup and (cell_w > 1 or cell_h > 1):
         result = cleanup_isolated_pixels(result)
