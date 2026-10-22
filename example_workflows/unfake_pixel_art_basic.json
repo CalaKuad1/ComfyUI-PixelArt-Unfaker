@@ -1,0 +1,235 @@
+{
+  "last_node_id": 5,
+  "last_link_id": 3,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [
+        40,
+        140
+      ],
+      "size": [
+        320,
+        380
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "unfake_example_input.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "UnfakePixelArtNode",
+      "pos": [
+        400,
+        140
+      ],
+      "size": [
+        400,
+        640
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "pixel_art_image",
+          "type": "IMAGE",
+          "links": [
+            2
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "manifest",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 1
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": null,
+          "slot_index": 2
+        },
+        {
+          "name": "upscaled_image",
+          "type": "IMAGE",
+          "links": [
+            3
+          ],
+          "slot_index": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UnfakePixelArtNode"
+      },
+      "widgets_values": [
+        32,
+        32,
+        0,
+        true,
+        24,
+        8,
+        true,
+        "dominant",
+        "edge_aware",
+        3,
+        5,
+        0.1,
+        16,
+        "crop"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "SaveImage",
+      "pos": [
+        840,
+        140
+      ],
+      "size": [
+        300,
+        320
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 2
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "pixelart/sprite"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "SaveImage",
+      "pos": [
+        840,
+        500
+      ],
+      "size": [
+        300,
+        320
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 3
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "pixelart/sprite_x16"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "Note",
+      "pos": [
+        40,
+        -260
+      ],
+      "size": [
+        760,
+        360
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "HOW TO USE\n\n1. Load Image: pick your AI 'pixel art' (any size, e.g. 1024x1024).\n   Example input: example_workflows/unfake_example_input.jpg (copy it to ComfyUI/input).\n\n2. Unfake Pixel Art: set target_width / target_height to the resolution the art SHOULD have\n   (e.g. 32x32 sprite, 64x64 icon). Count the 'big pixels' across the image if unsure.\n   Set both to 0 to auto-detect the pixel size instead (works best on clean, integer upscales).\n\n3. Tweak:\n   - max_colors: palette size (8-16 for sprites). 0 = keep all.\n   - remove_background + background_tolerance: raise tolerance (20-40) if bits of background remain.\n   - downscale_method: 'dominant' for noisy / JPEG images, 'nearest' for clean ones.\n   - fit_mode: what to do when the aspect ratio differs from the target (crop / pad / stretch).\n\nOutputs: pixel_art_image = real-size PNG (with alpha), upscaled_image = big crisp version, mask = transparency, manifest = JSON with the detected grid and palette."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "IMAGE"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      0,
+      "IMAGE"
+    ],
+    [
+      3,
+      2,
+      3,
+      4,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8,
+      "offset": [
+        100,
+        320
+      ]
+    }
+  },
+  "version": 0.4
+}

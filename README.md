@@ -1,51 +1,87 @@
 # ComfyUI Pixel Art Unfaker
 
-A powerful custom node for ComfyUI that transforms "fake" or blurry AI-generated pixel art into true, crisp, mathematically perfect pixel art. 
+A custom node for ComfyUI that transforms "fake" or blurry AI-generated pixel art into true, crisp pixel art: one pixel per art pixel, aligned to the grid, with a limited palette and a transparent background.
 
-Based on the brilliant algorithm from [unfake.js](https://github.com/jenissimo/unfake.js) and inspired by the early adaptation [ComfyUI-Unfake-Pixels](https://github.com/tauraloke/ComfyUI-Unfake-Pixels).
+Based on the algorithm from [unfake.js](https://github.com/jenissimo/unfake.js) and inspired by the early adaptation [ComfyUI-Unfake-Pixels](https://github.com/tauraloke/ComfyUI-Unfake-Pixels).
+
+![Before and after](docs/before_after.png)
 
 ## 🌟 Features
 
-* **Edge-Aware Scale Detection**: Automatically detects the true "pixel size" of an AI-generated image, even if it's blurry or upscaled.
-* **Optimal Crop & Center**: Aligns and crops the image perfectly to the pixel grid. No more half-pixels!
-* **Smart Background Removal**: Automatically detects and makes the background transparent based on corner colors using connected components.
-* **Exact Target Resolution**: Force the output to be exactly `16x16`, `64x64`, etc. The node will calculate the math, crop, and pad automatically.
-* **Intelligent Color Quantization**: Reduces the color palette (e.g., 16 colors) using K-Means clustering for that authentic retro look.
-* **Built-in Upscaled Preview**: Generates a crisp, Nearest-Neighbor upscaled preview directly inside the ComfyUI node interface.
+* **Exact Target Resolution**: Get exactly `32x32`, `64x64`, `48x32`... Works with any input size, even when the "big pixels" of the AI image are not a whole number of real pixels, without stretching or half-pixels.
+* **Grid Alignment**: The sampling grid is snapped to the edges of the art, so every output pixel reads the center of an art pixel.
+* **Edge-Aware Scale Detection**: Leave the target size at `0` to auto-detect the pixel size of clean, upscaled pixel art.
+* **Smart Background Removal**: Detects the background color from the image border and removes only the regions connected to it, so similar colors inside the sprite are kept.
+* **Color Quantization**: Reduces the palette (median cut + k-means). Transparent pixels never waste palette slots.
+* **Stray Pixel Cleanup**: Removes isolated noise pixels without introducing new colors.
+* **Batch Support**: Process animation frames in one go. The pixel size detected on the first frame is reused for the rest.
+* **Ready-to-save outputs**: Real-size image (with alpha), a nearest-neighbor upscaled copy, the transparency mask and a JSON manifest with the detected grid and palette.
 
 ## 🛠️ Installation
 
-1. Clone or download this repository into your ComfyUI `custom_nodes` folder:
+**ComfyUI Manager**: search for *Pixel Art Unfaker* and install.
+
+**Manual**:
 ```bash
 cd ComfyUI/custom_nodes/
-git clone https://github.com/TU-USUARIO/ComfyUI-PixelArt-Unfaker.git
-```
-2. Install the required Python packages:
-```bash
+git clone https://github.com/CalaKuad1/ComfyUI-PixelArt-Unfaker.git
 cd ComfyUI-PixelArt-Unfaker
 pip install -r requirements.txt
 ```
-*(If you use the portable Windows version, use `.\python_embeded\python.exe -m pip install -r ...`)*
+*(Windows portable: `..\..\..\python_embeded\python.exe -m pip install -r requirements.txt`)*
 
-3. Restart ComfyUI. You will find the node under the `image/postprocessing` category as **Unfake Pixel Art (AI to Real)**.
+Restart ComfyUI. The node is in `image/postprocessing` as **Unfake Pixel Art (AI to Real)**.
+
+## 🚀 Quick start (example workflow)
+
+1. In ComfyUI open **Workflow → Browse Templates**, choose **ComfyUI-PixelArt-Unfaker → unfake_pixel_art_basic**.
+   (Or drag [`example_workflows/unfake_pixel_art_basic.json`](example_workflows/unfake_pixel_art_basic.json) onto the canvas.)
+2. Copy [`example_workflows/unfake_example_input.jpg`](example_workflows/unfake_example_input.jpg) into `ComfyUI/input/`, or load your own image in **Load Image**.
+3. Press **Queue**. You get the real 32x32 sprite and a 16x upscaled copy in `ComfyUI/output/pixelart/`.
+
+```
+Load Image ──► Unfake Pixel Art ──► pixel_art_image ──► Save Image   (32x32 PNG)
+                                └─► upscaled_image  ──► Save Image   (512x512 PNG)
+```
+
+It also works right after a KSampler / VAE Decode: plug the decoded image into the node.
+
+### Tips
+
+* **Which target size?** Count the "big pixels" across the AI image (or guess: most AI pixel art is drawn as 32, 48, 64 or 128 pixels wide) and use that as `target_width`. Set `target_height` to `0` to keep the aspect ratio.
+* **Leftover background** around the sprite: raise `background_tolerance` (20–40 for noisy / JPEG images).
+* **Blotchy colors**: use `downscale_method = dominant`.
+* **Missing 1-pixel details** (eyes, highlights): turn off `cleanup_jaggies`.
+* **No target size at all**: set both targets to `0` (auto-detect) or set `manual_scale_factor` to the size of one art pixel. Auto-detection works on integer upscales; for AI images, a target size is more reliable.
 
 ## 🎛️ Node Parameters
 
-* `target_width` & `target_height`: The exact final resolution you want (e.g., 64). Set to `0` to keep the auto-detected original aspect ratio.
-* `manual_scale_factor`: If auto-detection fails (common on noisy textures like dirt/ores), set this manually (e.g., if input is 1024x1024 and you want 16x16, the scale is 64). Set to `0` for auto-detect.
-* `remove_background`: Attempts to make the background transparent automatically.
-* `background_tolerance`: Tolerance (0-255) for the background removal color matching.
-* `max_colors`: Number of colors to quantize the final image to (e.g., 8, 16, 32).
-* `cleanup_jaggies`: Cleans up isolated noise pixels for cleaner lines.
-* `downscale_method`: `nearest` (crisper) or `dominant` (smooth color averaging).
-* `upscale_preview_factor`: How much to scale up the preview inside the ComfyUI node (e.g., 8x).
+| Parameter | Description |
+|---|---|
+| `target_width` / `target_height` | Exact output size in art pixels. One of them `0` = keep aspect ratio. Both `0` = use `manual_scale_factor` or auto-detect. |
+| `manual_scale_factor` | Size of one art pixel in input pixels (e.g. `16` turns 1024 into 64). `0` = auto-detect. |
+| `remove_background` | Make the border-connected background transparent. |
+| `background_tolerance` | Max per-channel difference (0–255) from the background color. |
+| `max_colors` | Palette size. `0` = keep all colors. |
+| `cleanup_jaggies` | Replace isolated stray pixels with their neighbors' color. |
+| `downscale_method` | `nearest`: center pixel of each cell (crisp). `dominant`: most common color of each cell (robust to noise). |
+| `scale_detection_method`, `ea_*` | Tuning for auto-detection (tile grid, minimum edge distance, edge strength). |
+| `upscale_preview_factor` | Upscale for the node preview and the `upscaled_image` output (capped at 4096px). |
+| `fit_mode` | When the aspect ratio differs from the target: `crop` (fill and cut), `pad` (fit with transparent borders) or `stretch`. |
+
+### Outputs
+
+| Output | Description |
+|---|---|
+| `pixel_art_image` | Real-size pixel art. RGBA when the background is removed or padding is added, RGB otherwise. |
+| `manifest` | JSON with the pixel size, grid offset, output size and palette (hex). |
+| `mask` | Transparent area in ComfyUI convention (1 = transparent, same as **Load Image**). |
+| `upscaled_image` | Nearest-neighbor upscaled copy, ready to save or preview. |
 
 ## 🙏 Credits & Acknowledgements
 
-This project stands on the shoulders of giants. Huge thanks to:
-
-* **[jenissimo](https://github.com/jenissimo)** for creating the original **[unfake.js](https://github.com/jenissimo/unfake.js)** library and the mathematical algorithm to tame AI pixel art.
-* **[tauraloke](https://github.com/tauraloke)** for the **[ComfyUI-Unfake-Pixels](https://github.com/tauraloke/ComfyUI-Unfake-Pixels)** implementation which served as the foundational inspiration for bringing this into ComfyUI.
+* **[jenissimo](https://github.com/jenissimo)** for the original **[unfake.js](https://github.com/jenissimo/unfake.js)** library and algorithm.
+* **[tauraloke](https://github.com/tauraloke)** for **[ComfyUI-Unfake-Pixels](https://github.com/tauraloke/ComfyUI-Unfake-Pixels)**, the foundational inspiration for bringing this into ComfyUI.
 
 ## 📄 License
 

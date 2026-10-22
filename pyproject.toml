@@ -1,0 +1,14 @@
+[project]
+name = "comfyui-pixelart-unfaker"
+description = "Turns blurry AI-generated 'pixel art' into real, grid-aligned pixel art with a limited palette and transparent background."
+version = "1.1.0"
+license = { file = "LICENSE" }
+dependencies = ["numpy", "Pillow", "scipy"]
+
+[project.urls]
+Repository = "https://github.com/CalaKuad1/ComfyUI-PixelArt-Unfaker"
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "Pixel Art Unfaker"
+Icon = ""
