@@ -39,10 +39,7 @@ Restart ComfyUI. The node is in `image/postprocessing` as **Unfake Pixel Art (AI
 2. Copy [`example_workflows/unfake_example_input.jpg`](example_workflows/unfake_example_input.jpg) into `ComfyUI/input/`, or load your own image in **Load Image**.
 3. Press **Queue**. You get the real 32x32 sprite and a 16x upscaled copy in `ComfyUI/output/pixelart/`.
 
-```
-Load Image ──► Unfake Pixel Art ──► pixel_art_image ──► Save Image   (32x32 PNG)
-                                └─► upscaled_image  ──► Save Image   (512x512 PNG)
-```
+![Example workflow in ComfyUI](docs/workflow_screenshot.png)
 
 It also works right after a KSampler / VAE Decode: plug the decoded image into the node.
 
